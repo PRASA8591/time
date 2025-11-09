@@ -93,14 +93,18 @@
   <div style="text-align:center;">
     <button onclick="saveToFirebase()">💾 Save Data</button>
     <button onclick="loadFromFirebase()">🔄 Reload Data</button>
+    <button onclick="downloadExcel()">📥 Download Excel</button>
   </div>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
+  <!-- SheetJS (for Excel export) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <script>
-    // ✅ Your Firebase config
+    // ✅ Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBJHqn-KIG7ntbsc9OZik7hf5lhObx7Ecg",
       authDomain: "hours-80ce8.firebaseapp.com",
@@ -118,7 +122,7 @@
     const daysInMonth = 30;
     const docId = "currentMonth"; // fixed doc ID for consistent saving
 
-    // build rows
+    // Build rows
     for (let d = 1; d <= daysInMonth; d++) {
       const row = document.createElement("tr");
       row.innerHTML = `
@@ -132,10 +136,9 @@
       tableBody.appendChild(row);
     }
 
-    // calculate total
+    // Calculate total hours
     function calculateHours() {
       let totalMinutes = 0;
-
       [...tableBody.querySelectorAll("tr")].forEach(row => {
         const sDate = row.querySelector(".startDate").value;
         const sTime = row.querySelector(".startTime").value;
@@ -165,7 +168,7 @@
 
     tableBody.addEventListener("input", calculateHours);
 
-    // save
+    // Save to Firebase
     function saveToFirebase() {
       let records = [];
       [...tableBody.querySelectorAll("tr")].forEach((row, i) => {
@@ -188,7 +191,7 @@
       }).catch(err => console.error("Save error:", err));
     }
 
-    // load
+    // Load from Firebase
     function loadFromFirebase() {
       db.collection("workingHours").doc(docId).get().then(doc => {
         if (doc.exists) {
@@ -206,6 +209,31 @@
           monthTotalCell.textContent = data.monthTotal || "00:00";
         }
       });
+    }
+
+    // Download Excel
+    function downloadExcel() {
+      let data = [];
+      data.push(["Day", "Start Date", "Start Time", "End Date", "End Time", "Total (hh:mm)"]);
+
+      [...tableBody.querySelectorAll("tr")].forEach(row => {
+        data.push([
+          row.cells[0].innerText,
+          row.querySelector(".startDate").value,
+          row.querySelector(".startTime").value,
+          row.querySelector(".endDate").value,
+          row.querySelector(".endTime").value,
+          row.querySelector(".total").textContent
+        ]);
+      });
+
+      data.push([]);
+      data.push(["", "", "", "", "Total Hours", monthTotalCell.textContent]);
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Working Hours");
+      XLSX.writeFile(wb, "Working_Hours.xlsx");
     }
 
     window.onload = loadFromFirebase;
