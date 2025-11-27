@@ -1,242 +1,365 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Working Hours Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      margin: 20px;
-      background: linear-gradient(135deg, #f9f9f9, #e0f7fa);
-    }
-    h2 {
-      text-align: center;
-      color: #00796b;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-    }
-    th {
-      background: #00796b;
-      color: white;
-    }
-    tfoot td {
-      font-weight: bold;
-      background: #b2dfdb;
-    }
-    input {
-      padding: 5px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-      width: 100%;
-    }
-    button {
-      margin: 10px;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      background: #00796b;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover { background: #004d40; }
-    @media (max-width: 768px) {
-      table, thead, tbody, th, td, tr { display: block; }
-      tr { margin-bottom: 15px; }
-      td, th { text-align: right; padding-left: 50%; position: relative; }
-      td::before, th::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 10px;
-        width: 45%;
-        text-align: left;
-        font-weight: bold;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Monthly Working Hours Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  body {
+    font-family: "Segoe UI", sans-serif;
+    margin: 20px;
+    background: #eef3f7;
+  }
+  h2 { text-align: center; color: #003c5f; }
+
+  /* --- TABLE --- */
+  table {
+    width: 100%; border-collapse: collapse; background: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px; text-align: center;
+  }
+  th { background: #005f73; color: white; }
+  input[readonly] { background: #e5e5e5; }
+
+  .offRow { background: #ffdddd !important; }
+
+  /* --- BUTTONS --- */
+  .btn {
+    padding: 10px 18px;
+    border: none;
+    margin: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.25s;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .saveBtn { background: #0277bd; color: white; }
+  .saveBtn:hover { background: #015c92; transform: scale(1.05); }
+
+  .loadBtn { background: #388e3c; color: white; }
+  .loadBtn:hover { background: #2e7030; transform: scale(1.05); }
+
+  .excelBtn { background: #f9a825; color:black; }
+  .excelBtn:hover { background: #c7891f; transform: scale(1.05); }
+
+  /* --- POPUP --- */
+  #popupBox {
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.5);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    z-index:999;
+  }
+  #popupInner {
+    background:white;
+    padding:25px;
+    border-radius:10px;
+    text-align:center;
+    animation: popupAnim 0.3s ease;
+    width:260px;
+  }
+  @keyframes popupAnim {
+    from { transform: scale(0.5); opacity:0; }
+    to   { transform: scale(1); opacity:1; }
+  }
+  .popupBtn {
+    margin-top:15px;
+    padding:8px 18px;
+    background:#0277bd;
+    color:white;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+  }
+
+</style>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyApOmFTkgRk-Jo5DWzd2dKFWs32ZwqaMOg",
+  authDomain: "budget-c1d78.firebaseapp.com",
+  projectId: "budget-c1d78",
+  storageBucket: "budget-c1d78.firebasestorage.app",
+  messagingSenderId: "235803369806",
+  appId: "1:235803369806:web:44262f8284916f6c7ffe1f",
+  measurementId: "G-H798ZEY3ET"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+</script>
+
 </head>
 <body>
-  <h2>Monthly Working Hours Tracker</h2>
-  
-  <table id="hoursTable">
-    <thead>
-      <tr>
-        <th>Day</th>
-        <th>Start Date</th>
-        <th>Start Time</th>
-        <th>End Date</th>
-        <th>End Time</th>
-        <th>Total (hh:mm)</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-    <tfoot>
-      <tr>
-        <td colspan="5">Total Hours</td>
-        <td id="monthTotal">00:00</td>
-      </tr>
-    </tfoot>
-  </table>
 
-  <div style="text-align:center;">
-    <button onclick="saveToFirebase()">💾 Save Data</button>
-    <button onclick="loadFromFirebase()">🔄 Reload Data</button>
-    <button onclick="downloadExcel()">📥 Download Excel</button>
+<h2>Monthly Working Hours Tracker</h2>
+
+<!-- MONTH DROPDOWN -->
+<label><b>Select Month:</b></label>
+<select id="monthSelect"></select>
+
+<br><br>
+
+<button class="btn saveBtn" onclick="saveData()">SAVE</button>
+<button class="btn loadBtn" onclick="loadForSelectedMonth()">LOAD</button>
+<button class="btn excelBtn" onclick="downloadExcel()">DOWNLOAD EXCEL</button>
+
+<br><br>
+
+<table>
+<thead>
+<tr>
+  <th>OFF</th>
+  <th>Day</th>
+  <th>Start Date</th>
+  <th>Start Time</th>
+  <th>End Date</th>
+  <th>End Time</th>
+  <th>Total</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+
+<tfoot>
+<tr>
+  <td colspan="6"><b>Monthly Total</b></td>
+  <td id="monthlyTotal"><b>00:00</b></td>
+</tr>
+</tfoot>
+</table>
+
+<!-- CUSTOM POPUP -->
+<div id="popupBox">
+  <div id="popupInner">
+    <h3>Data Saved ✔</h3>
+    <button class="popupBtn" onclick="closePopup()">OK</button>
   </div>
+</div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-  <!-- SheetJS (for Excel export) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
-  <script>
-    // ✅ Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBJHqn-KIG7ntbsc9OZik7hf5lhObx7Ecg",
-      authDomain: "hours-80ce8.firebaseapp.com",
-      projectId: "hours-80ce8",
-      storageBucket: "hours-80ce8.appspot.com",
-      messagingSenderId: "425460400755",
-      appId: "1:425460400755:web:9fbbe205d914e8f84c2006"
-    };
+<script>
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+let tableBody = document.getElementById("tableBody");
+let daysInMonth = 31;
 
-    const tableBody = document.getElementById("tableBody");
-    const monthTotalCell = document.getElementById("monthTotal");
-    const daysInMonth = 30;
-    const docId = "currentMonth"; // fixed doc ID for consistent saving
+/* ---------------- MONTH DROPDOWN ---------------- */
+function buildMonthDropdown() {
+  let select = document.getElementById("monthSelect");
+  select.innerHTML = "";
 
-    // Build rows
-    for (let d = 1; d <= daysInMonth; d++) {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td data-label="Day">${d}</td>
-        <td data-label="Start Date"><input type="date" class="startDate"></td>
-        <td data-label="Start Time"><input type="time" class="startTime"></td>
-        <td data-label="End Date"><input type="date" class="endDate"></td>
-        <td data-label="End Time"><input type="time" class="endTime"></td>
-        <td data-label="Total" class="total">00:00</td>
-      `;
-      tableBody.appendChild(row);
+  let yearNow = new Date().getFullYear();
+  let months = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December"
+  ];
+
+  for (let yr = yearNow - 1; yr <= yearNow + 2; yr++) {
+    months.forEach((m,i)=>{
+      let mm = String(i+1).padStart(2,"0");
+      let value = `${yr}-${mm}`;
+      let option = document.createElement("option");
+      option.value = value;
+      option.textContent = `${yr} – ${m}`;
+      select.appendChild(option);
+    });
+  }
+}
+buildMonthDropdown();
+document.getElementById("monthSelect").addEventListener("change", buildRows);
+
+
+/* ---------------- BUILD ROWS ---------------- */
+function buildRows() {
+  const month = document.getElementById("monthSelect").value;
+  if (!month) return;
+
+  let [yr, mm] = month.split("-");
+  daysInMonth = new Date(yr, mm, 0).getDate();
+
+  tableBody.innerHTML = "";
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    let day = String(d).padStart(2,"0");
+
+    let row = document.createElement("tr");
+    row.innerHTML = `
+      <td><input type="checkbox" class="offCheck"></td>
+      <td>${d}</td>
+
+      <td><input type="date" class="startDate" value="${yr}-${mm}-${day}"></td>
+      <td><input type="time" class="startTime"></td>
+
+      <td><input type="date" class="endDate" value="${yr}-${mm}-${day}"></td>
+      <td><input type="time" class="endTime"></td>
+
+      <td class="total">00:00</td>
+    `;
+
+    tableBody.appendChild(row);
+  }
+
+  attachEvents();
+}
+
+/* ---------------- EVENTS ---------------- */
+function attachEvents() {
+  document.querySelectorAll(".startTime,.endTime").forEach(inp=>{
+    inp.addEventListener("change", calculateAll);
+  });
+
+  document.querySelectorAll(".offCheck").forEach((chk,i)=>{
+    chk.addEventListener("change", ()=> handleOff(i));
+  });
+}
+
+/* ---------------- OFF HANDLER ---------------- */
+function handleOff(i){
+  const row = tableBody.children[i];
+  const isOff = row.querySelector(".offCheck").checked;
+
+  if(isOff){
+    row.classList.add("offRow");
+    row.querySelector(".startTime").value="";
+    row.querySelector(".endTime").value="";
+    row.querySelector(".total").textContent="OFF";
+
+    row.querySelector(".startTime").disabled=true;
+    row.querySelector(".endTime").disabled=true;
+  } else {
+    row.classList.remove("offRow");
+    row.querySelector(".startTime").disabled=false;
+    row.querySelector(".endTime").disabled=false;
+    row.querySelector(".total").textContent="00:00";
+  }
+
+  calculateAll();
+}
+
+/* ---------------- CALCULATE TOTALS ---------------- */
+function calculateAll(){
+  let totalMinutes = 0;
+
+  [...tableBody.querySelectorAll("tr")].forEach(row=>{
+    if(row.querySelector(".offCheck").checked) return;
+
+    let st = row.querySelector(".startTime").value;
+    let et = row.querySelector(".endTime").value;
+
+    if(st && et){
+      let start = new Date(`2000-01-01 ${st}`);
+      let end = new Date(`2000-01-01 ${et}`);
+      let diff = (end - start)/60000;
+
+      if(diff < 0) diff += 1440;
+
+      totalMinutes += diff;
+      row.querySelector(".total").textContent =
+        `${String(Math.floor(diff/60)).padStart(2,"0")}:${String(diff%60).padStart(2,"0")}`;
     }
+  });
 
-    // Calculate total hours
-    function calculateHours() {
-      let totalMinutes = 0;
-      [...tableBody.querySelectorAll("tr")].forEach(row => {
-        const sDate = row.querySelector(".startDate").value;
-        const sTime = row.querySelector(".startTime").value;
-        const eDate = row.querySelector(".endDate").value;
-        const eTime = row.querySelector(".endTime").value;
-        const totalCell = row.querySelector(".total");
+  document.getElementById("monthlyTotal").textContent =
+    `${String(Math.floor(totalMinutes/60)).padStart(2,"0")}:${String(totalMinutes%60).padStart(2,"0")}`;
+}
 
-        if (sDate && sTime && eDate && eTime) {
-          const start = new Date(`${sDate}T${sTime}`);
-          const end = new Date(`${eDate}T${eTime}`);
-          let diff = (end - start) / 60000;
-          if (diff < 0) diff = 0;
+/* ---------------- SAVE TO FIREBASE ---------------- */
+async function saveData(){
+  const month = document.getElementById("monthSelect").value;
+  if(!month) return;
 
-          const h = Math.floor(diff / 60);
-          const m = diff % 60;
-          totalCell.textContent = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-          totalMinutes += diff;
-        } else {
-          totalCell.textContent = "00:00";
-        }
-      });
+  let records = [];
 
-      const H = Math.floor(totalMinutes / 60);
-      const M = totalMinutes % 60;
-      monthTotalCell.textContent = `${String(H).padStart(2,"0")}:${String(M).padStart(2,"0")}`;
-    }
+  [...tableBody.querySelectorAll("tr")].forEach(row=>{
+    records.push({
+      off: row.querySelector(".offCheck").checked,
+      startDate: row.querySelector(".startDate").value,
+      startTime: row.querySelector(".startTime").value,
+      endDate: row.querySelector(".endDate").value,
+      endTime: row.querySelector(".endTime").value,
+      total: row.querySelector(".total").textContent
+    });
+  });
 
-    tableBody.addEventListener("input", calculateHours);
+  await db.collection("workHours").doc(month).set({
+    month, records,
+    monthlyTotal: document.getElementById("monthlyTotal").textContent
+  });
 
-    // Save to Firebase
-    function saveToFirebase() {
-      let records = [];
-      [...tableBody.querySelectorAll("tr")].forEach((row, i) => {
-        records.push({
-          day: i + 1,
-          startDate: row.querySelector(".startDate").value,
-          startTime: row.querySelector(".startTime").value,
-          endDate: row.querySelector(".endDate").value,
-          endTime: row.querySelector(".endTime").value,
-          total: row.querySelector(".total").textContent
-        });
-      });
+  showPopup();
+}
 
-      db.collection("workingHours").doc(docId).set({
-        timestamp: new Date(),
-        records: records,
-        monthTotal: monthTotalCell.textContent
-      }).then(() => {
-        alert("✅ Data saved!");
-      }).catch(err => console.error("Save error:", err));
-    }
+/* ---------------- LOAD ---------------- */
+async function loadForSelectedMonth(){
+  const month = document.getElementById("monthSelect").value;
+  if(!month) return;
 
-    // Load from Firebase
-    function loadFromFirebase() {
-      db.collection("workingHours").doc(docId).get().then(doc => {
-        if (doc.exists) {
-          const data = doc.data();
-          [...tableBody.querySelectorAll("tr")].forEach((row, i) => {
-            const r = data.records[i];
-            if (r) {
-              row.querySelector(".startDate").value = r.startDate || "";
-              row.querySelector(".startTime").value = r.startTime || "";
-              row.querySelector(".endDate").value = r.endDate || "";
-              row.querySelector(".endTime").value = r.endTime || "";
-              row.querySelector(".total").textContent = r.total || "00:00";
-            }
-          });
-          monthTotalCell.textContent = data.monthTotal || "00:00";
-        }
-      });
-    }
+  const docSnap = await db.collection("workHours").doc(month).get();
+  if(!docSnap.exists) return alert("No Saved Data");
 
-    // Download Excel
-    function downloadExcel() {
-      let data = [];
-      data.push(["Day", "Start Date", "Start Time", "End Date", "End Time", "Total (hh:mm)"]);
+  buildRows();
 
-      [...tableBody.querySelectorAll("tr")].forEach(row => {
-        data.push([
-          row.cells[0].innerText,
-          row.querySelector(".startDate").value,
-          row.querySelector(".startTime").value,
-          row.querySelector(".endDate").value,
-          row.querySelector(".endTime").value,
-          row.querySelector(".total").textContent
-        ]);
-      });
+  const data = docSnap.data();
 
-      data.push([]);
-      data.push(["", "", "", "", "Total Hours", monthTotalCell.textContent]);
+  [...tableBody.querySelectorAll("tr")].forEach((row,i)=>{
+    let r = data.records[i];
 
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Working Hours");
-      XLSX.writeFile(wb, "Working_Hours.xlsx");
-    }
+    row.querySelector(".offCheck").checked = r.off;
+    row.querySelector(".startDate").value = r.startDate;
+    row.querySelector(".startTime").value = r.startTime;
+    row.querySelector(".endDate").value = r.endDate;
+    row.querySelector(".endTime").value = r.endTime;
+    row.querySelector(".total").textContent = r.total;
 
-    window.onload = loadFromFirebase;
-  </script>
+    if(r.off) handleOff(i);
+  });
+
+  calculateAll();
+}
+
+/* ---------------- DOWNLOAD EXCEL ---------------- */
+function downloadExcel(){
+  let data = [["Day","Start Date","Start Time","End Date","End Time","Total"]];
+
+  [...tableBody.querySelectorAll("tr")].forEach((row,i)=>{
+    data.push([
+      i+1,
+      row.querySelector(".startDate").value,
+      row.querySelector(".startTime").value,
+      row.querySelector(".endDate").value,
+      row.querySelector(".endTime").value,
+      row.querySelector(".total").textContent
+    ]);
+  });
+
+  let ws = XLSX.utils.aoa_to_sheet(data);
+  let wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Hours");
+  XLSX.writeFile(wb, "WorkingHours.xlsx");
+}
+
+/* ---------------- POPUP ---------------- */
+function showPopup(){
+  document.getElementById("popupBox").style.display="flex";
+}
+function closePopup(){
+  document.getElementById("popupBox").style.display="none";
+}
+
+</script>
+
 </body>
 </html>
