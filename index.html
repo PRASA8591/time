@@ -6,80 +6,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-  body {
-    font-family: "Segoe UI", sans-serif;
-    margin: 20px;
-    background: #eef3f7;
-  }
-  h2 { text-align: center; color: #003c5f; }
-
-  /* --- TABLE --- */
-  table {
-    width: 100%; border-collapse: collapse; background: white;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  }
-  th, td {
-    border: 1px solid #ccc;
-    padding: 8px; text-align: center;
-  }
-  th { background: #005f73; color: white; }
-  input[readonly] { background: #e5e5e5; }
-
-  .offRow { background: #ffdddd !important; }
-
-  /* --- BUTTONS --- */
-  .btn {
-    padding: 10px 18px;
-    border: none;
-    margin: 5px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.25s;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  }
-  .saveBtn { background: #0277bd; color: white; }
-  .saveBtn:hover { background: #015c92; transform: scale(1.05); }
-
-  .loadBtn { background: #388e3c; color: white; }
-  .loadBtn:hover { background: #2e7030; transform: scale(1.05); }
-
-  .excelBtn { background: #f9a825; color:black; }
-  .excelBtn:hover { background: #c7891f; transform: scale(1.05); }
-
-  /* --- POPUP --- */
-  #popupBox {
-    position: fixed;
-    top:0; left:0;
-    width:100%; height:100%;
-    background: rgba(0,0,0,0.5);
-    display:none;
-    justify-content:center;
-    align-items:center;
-    z-index:999;
-  }
-  #popupInner {
-    background:white;
-    padding:25px;
-    border-radius:10px;
-    text-align:center;
-    animation: popupAnim 0.3s ease;
-    width:260px;
-  }
-  @keyframes popupAnim {
-    from { transform: scale(0.5); opacity:0; }
-    to   { transform: scale(1); opacity:1; }
-  }
-  .popupBtn {
-    margin-top:15px;
-    padding:8px 18px;
-    background:#0277bd;
-    color:white;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-  }
-
+body{font-family:Segoe UI;background:#eef3f7;margin:20px}
+h2{text-align:center;color:#003c5f}
+table{width:100%;border-collapse:collapse;background:#fff;box-shadow:0 4px 10px rgba(0,0,0,.1)}
+th,td{border:1px solid #ccc;padding:8px;text-align:center}
+th{background:#005f73;color:#fff}
+.offRow{background:#ffd6d6}
+.btn{padding:10px 18px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;margin:5px}
+.saveBtn{background:#0277bd;color:#fff}
+.loadBtn{background:#388e3c;color:#fff}
+.excelBtn{background:#f9a825}
+#popupBox{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;justify-content:center;align-items:center}
+#popupInner{background:#fff;padding:25px;border-radius:10px;text-align:center}
 </style>
 
 <!-- Firebase -->
@@ -87,25 +25,19 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <script>
-const firebaseConfig = {
+firebase.initializeApp({
   apiKey: "AIzaSyApOmFTkgRk-Jo5DWzd2dKFWs32ZwqaMOg",
   authDomain: "budget-c1d78.firebaseapp.com",
-  projectId: "budget-c1d78",
-  storageBucket: "budget-c1d78.firebasestorage.app",
-  messagingSenderId: "235803369806",
-  appId: "1:235803369806:web:44262f8284916f6c7ffe1f",
-  measurementId: "G-H798ZEY3ET"
-};
-firebase.initializeApp(firebaseConfig);
+  projectId: "budget-c1d78"
+});
 const db = firebase.firestore();
 </script>
-
 </head>
+
 <body>
 
 <h2>Monthly Working Hours Tracker</h2>
 
-<!-- MONTH DROPDOWN -->
 <label><b>Select Month:</b></label>
 <select id="monthSelect"></select>
 
@@ -120,245 +52,134 @@ const db = firebase.firestore();
 <table>
 <thead>
 <tr>
-  <th>OFF</th>
-  <th>Day</th>
-  <th>Start Date</th>
-  <th>Start Time</th>
-  <th>End Date</th>
-  <th>End Time</th>
-  <th>Total</th>
+<th>OFF</th><th>Day</th><th>Start Date</th><th>Start</th>
+<th>End Date</th><th>End</th><th>Total</th>
 </tr>
 </thead>
 <tbody id="tableBody"></tbody>
-
 <tfoot>
-<tr>
-  <td colspan="6"><b>Monthly Total</b></td>
-  <td id="monthlyTotal"><b>00:00</b></td>
-</tr>
+<tr><td colspan="6"><b>Monthly Total</b></td><td id="monthlyTotal">00:00</td></tr>
 </tfoot>
 </table>
 
-<!-- CUSTOM POPUP -->
 <div id="popupBox">
   <div id="popupInner">
     <h3>Data Saved ✔</h3>
-    <button class="popupBtn" onclick="closePopup()">OK</button>
+    <button onclick="closePopup()">OK</button>
   </div>
 </div>
 
-
-<!-- SheetJS -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <script>
+const tableBody=document.getElementById("tableBody");
+const monthSelect=document.getElementById("monthSelect");
 
-let tableBody = document.getElementById("tableBody");
-let daysInMonth = 31;
-
-/* ---------------- MONTH DROPDOWN ---------------- */
-function buildMonthDropdown() {
-  let select = document.getElementById("monthSelect");
-  select.innerHTML = "";
-
-  let yearNow = new Date().getFullYear();
-  let months = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
-  ];
-
-  for (let yr = yearNow - 1; yr <= yearNow + 2; yr++) {
-    months.forEach((m,i)=>{
-      let mm = String(i+1).padStart(2,"0");
-      let value = `${yr}-${mm}`;
-      let option = document.createElement("option");
-      option.value = value;
-      option.textContent = `${yr} – ${m}`;
-      select.appendChild(option);
-    });
+/* MONTH DROPDOWN */
+(function(){
+  const y=new Date().getFullYear();
+  for(let yr=y-1;yr<=y+1;yr++){
+    for(let m=1;m<=12;m++){
+      const v=`${yr}-${String(m).padStart(2,"0")}`;
+      const o=document.createElement("option");
+      o.value=v;o.textContent=v;
+      monthSelect.appendChild(o);
+    }
   }
-}
-buildMonthDropdown();
-document.getElementById("monthSelect").addEventListener("change", buildRows);
+  monthSelect.value=`${y}-${String(new Date().getMonth()+1).padStart(2,"0")}`;
+  buildRows();
+})();
 
+monthSelect.onchange=buildRows;
 
-/* ---------------- BUILD ROWS ---------------- */
-function buildRows() {
-  const month = document.getElementById("monthSelect").value;
-  if (!month) return;
+function buildRows(){
+  tableBody.innerHTML="";
+  const [y,m]=monthSelect.value.split("-");
+  const days=new Date(y,m,0).getDate();
 
-  let [yr, mm] = month.split("-");
-  daysInMonth = new Date(yr, mm, 0).getDate();
-
-  tableBody.innerHTML = "";
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    let day = String(d).padStart(2,"0");
-
-    let row = document.createElement("tr");
-    row.innerHTML = `
-      <td><input type="checkbox" class="offCheck"></td>
-      <td>${d}</td>
-
-      <td><input type="date" class="startDate" value="${yr}-${mm}-${day}"></td>
-      <td><input type="time" class="startTime"></td>
-
-      <td><input type="date" class="endDate" value="${yr}-${mm}-${day}"></td>
-      <td><input type="time" class="endTime"></td>
-
-      <td class="total">00:00</td>
-    `;
-
-    tableBody.appendChild(row);
+  for(let d=1;d<=days;d++){
+    tableBody.innerHTML+=`
+<tr>
+<td><input type="checkbox" class="off"></td>
+<td>${d}</td>
+<td><input type="date" value="${y}-${m}-${String(d).padStart(2,"0")}"></td>
+<td><input type="time" class="st"></td>
+<td><input type="date" value="${y}-${m}-${String(d).padStart(2,"0")}"></td>
+<td><input type="time" class="et"></td>
+<td class="tot">00:00</td>
+</tr>`;
   }
-
-  attachEvents();
+  document.querySelectorAll("input").forEach(i=>i.onchange=calc);
 }
 
-/* ---------------- EVENTS ---------------- */
-function attachEvents() {
-  document.querySelectorAll(".startTime,.endTime").forEach(inp=>{
-    inp.addEventListener("change", calculateAll);
-  });
-
-  document.querySelectorAll(".offCheck").forEach((chk,i)=>{
-    chk.addEventListener("change", ()=> handleOff(i));
-  });
-}
-
-/* ---------------- OFF HANDLER ---------------- */
-function handleOff(i){
-  const row = tableBody.children[i];
-  const isOff = row.querySelector(".offCheck").checked;
-
-  if(isOff){
-    row.classList.add("offRow");
-    row.querySelector(".startTime").value="";
-    row.querySelector(".endTime").value="";
-    row.querySelector(".total").textContent="OFF";
-
-    row.querySelector(".startTime").disabled=true;
-    row.querySelector(".endTime").disabled=true;
-  } else {
-    row.classList.remove("offRow");
-    row.querySelector(".startTime").disabled=false;
-    row.querySelector(".endTime").disabled=false;
-    row.querySelector(".total").textContent="00:00";
-  }
-
-  calculateAll();
-}
-
-/* ---------------- CALCULATE TOTALS ---------------- */
-function calculateAll(){
-  let totalMinutes = 0;
-
-  [...tableBody.querySelectorAll("tr")].forEach(row=>{
-    if(row.querySelector(".offCheck").checked) return;
-
-    let st = row.querySelector(".startTime").value;
-    let et = row.querySelector(".endTime").value;
-
-    if(st && et){
-      let start = new Date(`2000-01-01 ${st}`);
-      let end = new Date(`2000-01-01 ${et}`);
-      let diff = (end - start)/60000;
-
-      if(diff < 0) diff += 1440;
-
-      totalMinutes += diff;
-      row.querySelector(".total").textContent =
-        `${String(Math.floor(diff/60)).padStart(2,"0")}:${String(diff%60).padStart(2,"0")}`;
+function calc(){
+  let sum=0;
+  [...tableBody.rows].forEach(r=>{
+    if(r.querySelector(".off").checked){
+      r.classList.add("offRow");r.querySelector(".tot").innerText="OFF";return;
+    }
+    r.classList.remove("offRow");
+    const st=r.querySelector(".st").value;
+    const et=r.querySelector(".et").value;
+    if(st&&et){
+      let s=new Date(`2000-01-01 ${st}`);
+      let e=new Date(`2000-01-01 ${et}`);
+      let d=(e-s)/60000;if(d<0)d+=1440;
+      sum+=d;
+      r.querySelector(".tot").innerText=
+        String(Math.floor(d/60)).padStart(2,"0")+":"+String(d%60).padStart(2,"0");
     }
   });
-
-  document.getElementById("monthlyTotal").textContent =
-    `${String(Math.floor(totalMinutes/60)).padStart(2,"0")}:${String(totalMinutes%60).padStart(2,"0")}`;
+  document.getElementById("monthlyTotal").innerText=
+    String(Math.floor(sum/60)).padStart(2,"0")+":"+String(sum%60).padStart(2,"0");
 }
 
-/* ---------------- SAVE TO FIREBASE ---------------- */
+/* SAVE */
 async function saveData(){
-  const month = document.getElementById("monthSelect").value;
-  if(!month) return;
-
-  let records = [];
-
-  [...tableBody.querySelectorAll("tr")].forEach(row=>{
-    records.push({
-      off: row.querySelector(".offCheck").checked,
-      startDate: row.querySelector(".startDate").value,
-      startTime: row.querySelector(".startTime").value,
-      endDate: row.querySelector(".endDate").value,
-      endTime: row.querySelector(".endTime").value,
-      total: row.querySelector(".total").textContent
+  try{
+    const rec=[...tableBody.rows].map(r=>({
+      off:r.querySelector(".off").checked,
+      st:r.querySelector(".st").value,
+      et:r.querySelector(".et").value,
+      total:r.querySelector(".tot").innerText
+    }));
+    await db.collection("workHours").doc(monthSelect.value).set({
+      month:monthSelect.value,
+      records:rec,
+      total:monthlyTotal.innerText,
+      savedAt:new Date()
     });
-  });
-
-  await db.collection("workHours").doc(month).set({
-    month, records,
-    monthlyTotal: document.getElementById("monthlyTotal").textContent
-  });
-
-  showPopup();
+    showPopup();
+  }catch(e){
+    alert("SAVE FAILED ❌\n"+e.message);
+    console.error(e);
+  }
 }
 
-/* ---------------- LOAD ---------------- */
+/* LOAD */
 async function loadForSelectedMonth(){
-  const month = document.getElementById("monthSelect").value;
-  if(!month) return;
-
-  const docSnap = await db.collection("workHours").doc(month).get();
-  if(!docSnap.exists) return alert("No Saved Data");
-
+  const d=await db.collection("workHours").doc(monthSelect.value).get();
+  if(!d.exists)return alert("No data");
   buildRows();
-
-  const data = docSnap.data();
-
-  [...tableBody.querySelectorAll("tr")].forEach((row,i)=>{
-    let r = data.records[i];
-
-    row.querySelector(".offCheck").checked = r.off;
-    row.querySelector(".startDate").value = r.startDate;
-    row.querySelector(".startTime").value = r.startTime;
-    row.querySelector(".endDate").value = r.endDate;
-    row.querySelector(".endTime").value = r.endTime;
-    row.querySelector(".total").textContent = r.total;
-
-    if(r.off) handleOff(i);
+  d.data().records.forEach((r,i)=>{
+    const row=tableBody.rows[i];
+    row.querySelector(".off").checked=r.off;
+    row.querySelector(".st").value=r.st;
+    row.querySelector(".et").value=r.et;
   });
-
-  calculateAll();
+  calc();
 }
 
-/* ---------------- DOWNLOAD EXCEL ---------------- */
 function downloadExcel(){
-  let data = [["Day","Start Date","Start Time","End Date","End Time","Total"]];
-
-  [...tableBody.querySelectorAll("tr")].forEach((row,i)=>{
-    data.push([
-      i+1,
-      row.querySelector(".startDate").value,
-      row.querySelector(".startTime").value,
-      row.querySelector(".endDate").value,
-      row.querySelector(".endTime").value,
-      row.querySelector(".total").textContent
-    ]);
-  });
-
-  let ws = XLSX.utils.aoa_to_sheet(data);
-  let wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Hours");
-  XLSX.writeFile(wb, "WorkingHours.xlsx");
+  const a=[["Day","Start","End","Total"]];
+  [...tableBody.rows].forEach((r,i)=>a.push([i+1,r.querySelector(".st").value,r.querySelector(".et").value,r.querySelector(".tot").innerText]));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a),"Hours");
+  XLSX.writeFile(wb,"WorkingHours.xlsx");
 }
 
-/* ---------------- POPUP ---------------- */
-function showPopup(){
-  document.getElementById("popupBox").style.display="flex";
-}
-function closePopup(){
-  document.getElementById("popupBox").style.display="none";
-}
-
+function showPopup(){popupBox.style.display="flex"}
+function closePopup(){popupBox.style.display="none"}
 </script>
 
 </body>
