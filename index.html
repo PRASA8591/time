@@ -11,13 +11,13 @@ h2{text-align:center;color:#003c5f}
 table{width:100%;border-collapse:collapse;background:#fff;box-shadow:0 4px 10px rgba(0,0,0,.1)}
 th,td{border:1px solid #ccc;padding:8px;text-align:center}
 th{background:#005f73;color:#fff}
-.offRow{background:#ffd6d6}
+.offRow{background:#ffdede}
 .btn{padding:10px 18px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;margin:5px}
 .saveBtn{background:#0277bd;color:#fff}
 .loadBtn{background:#388e3c;color:#fff}
 .excelBtn{background:#f9a825}
-#popupBox{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;justify-content:center;align-items:center}
-#popupInner{background:#fff;padding:25px;border-radius:10px;text-align:center}
+#popup{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;justify-content:center;align-items:center}
+#popup div{background:#fff;padding:25px;border-radius:10px;text-align:center}
 </style>
 
 <!-- Firebase -->
@@ -39,12 +39,12 @@ const db = firebase.firestore();
 <h2>Monthly Working Hours Tracker</h2>
 
 <label><b>Select Month:</b></label>
-<select id="monthSelect"></select>
+<select id="month"></select>
 
 <br><br>
 
 <button class="btn saveBtn" onclick="saveData()">SAVE</button>
-<button class="btn loadBtn" onclick="loadForSelectedMonth()">LOAD</button>
+<button class="btn loadBtn" onclick="loadData()">LOAD</button>
 <button class="btn excelBtn" onclick="downloadExcel()">DOWNLOAD EXCEL</button>
 
 <br><br>
@@ -52,59 +52,56 @@ const db = firebase.firestore();
 <table>
 <thead>
 <tr>
-<th>OFF</th><th>Day</th><th>Start Date</th><th>Start</th>
-<th>End Date</th><th>End</th><th>Total</th>
+<th>OFF</th><th>Day</th><th>Start</th><th>End</th><th>Total</th>
 </tr>
 </thead>
-<tbody id="tableBody"></tbody>
+<tbody id="body"></tbody>
 <tfoot>
-<tr><td colspan="6"><b>Monthly Total</b></td><td id="monthlyTotal">00:00</td></tr>
+<tr><td colspan="4"><b>Monthly Total</b></td><td id="monthlyTotal">00:00</td></tr>
 </tfoot>
 </table>
 
-<div id="popupBox">
-  <div id="popupInner">
-    <h3>Data Saved ✔</h3>
-    <button onclick="closePopup()">OK</button>
+<div id="popup">
+  <div>
+    <h3>Saved Successfully ✔</h3>
+    <button onclick="popup.style.display='none'">OK</button>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <script>
-const tableBody=document.getElementById("tableBody");
-const monthSelect=document.getElementById("monthSelect");
+const body=document.getElementById("body");
+const monthSel=document.getElementById("month");
 
-/* MONTH DROPDOWN */
-(function(){
+/* Build Month List */
+(()=>{
   const y=new Date().getFullYear();
   for(let yr=y-1;yr<=y+1;yr++){
     for(let m=1;m<=12;m++){
       const v=`${yr}-${String(m).padStart(2,"0")}`;
       const o=document.createElement("option");
       o.value=v;o.textContent=v;
-      monthSelect.appendChild(o);
+      monthSel.appendChild(o);
     }
   }
-  monthSelect.value=`${y}-${String(new Date().getMonth()+1).padStart(2,"0")}`;
+  monthSel.value=`${y}-${String(new Date().getMonth()+1).padStart(2,"0")}`;
   buildRows();
 })();
+monthSel.onchange=buildRows;
 
-monthSelect.onchange=buildRows;
-
+/* Build Table */
 function buildRows(){
-  tableBody.innerHTML="";
-  const [y,m]=monthSelect.value.split("-");
+  body.innerHTML="";
+  const [y,m]=monthSel.value.split("-");
   const days=new Date(y,m,0).getDate();
 
   for(let d=1;d<=days;d++){
-    tableBody.innerHTML+=`
+    body.innerHTML+=`
 <tr>
 <td><input type="checkbox" class="off"></td>
 <td>${d}</td>
-<td><input type="date" value="${y}-${m}-${String(d).padStart(2,"0")}"></td>
 <td><input type="time" class="st"></td>
-<td><input type="date" value="${y}-${m}-${String(d).padStart(2,"0")}"></td>
 <td><input type="time" class="et"></td>
 <td class="tot">00:00</td>
 </tr>`;
@@ -112,11 +109,14 @@ function buildRows(){
   document.querySelectorAll("input").forEach(i=>i.onchange=calc);
 }
 
+/* Calculate */
 function calc(){
   let sum=0;
-  [...tableBody.rows].forEach(r=>{
+  [...body.rows].forEach(r=>{
     if(r.querySelector(".off").checked){
-      r.classList.add("offRow");r.querySelector(".tot").innerText="OFF";return;
+      r.classList.add("offRow");
+      r.querySelector(".tot").innerText="OFF";
+      return;
     }
     r.classList.remove("offRow");
     const st=r.querySelector(".st").value;
@@ -130,56 +130,56 @@ function calc(){
         String(Math.floor(d/60)).padStart(2,"0")+":"+String(d%60).padStart(2,"0");
     }
   });
-  document.getElementById("monthlyTotal").innerText=
+  monthlyTotal.innerText=
     String(Math.floor(sum/60)).padStart(2,"0")+":"+String(sum%60).padStart(2,"0");
 }
 
-/* SAVE */
+/* Save */
 async function saveData(){
   try{
-    const rec=[...tableBody.rows].map(r=>({
+    const records=[...body.rows].map(r=>({
       off:r.querySelector(".off").checked,
-      st:r.querySelector(".st").value,
-      et:r.querySelector(".et").value,
+      start:r.querySelector(".st").value,
+      end:r.querySelector(".et").value,
       total:r.querySelector(".tot").innerText
     }));
-    await db.collection("workHours").doc(monthSelect.value).set({
-      month:monthSelect.value,
-      records:rec,
+    await db.collection("workHours").doc(monthSel.value).set({
+      month:monthSel.value,
+      records,
       total:monthlyTotal.innerText,
       savedAt:new Date()
     });
-    showPopup();
+    popup.style.display="flex";
   }catch(e){
     alert("SAVE FAILED ❌\n"+e.message);
     console.error(e);
   }
 }
 
-/* LOAD */
-async function loadForSelectedMonth(){
-  const d=await db.collection("workHours").doc(monthSelect.value).get();
-  if(!d.exists)return alert("No data");
+/* Load */
+async function loadData(){
+  const snap=await db.collection("workHours").doc(monthSel.value).get();
+  if(!snap.exists) return alert("No saved data");
   buildRows();
-  d.data().records.forEach((r,i)=>{
-    const row=tableBody.rows[i];
+  snap.data().records.forEach((r,i)=>{
+    const row=body.rows[i];
     row.querySelector(".off").checked=r.off;
-    row.querySelector(".st").value=r.st;
-    row.querySelector(".et").value=r.et;
+    row.querySelector(".st").value=r.start;
+    row.querySelector(".et").value=r.end;
   });
   calc();
 }
 
+/* Excel */
 function downloadExcel(){
   const a=[["Day","Start","End","Total"]];
-  [...tableBody.rows].forEach((r,i)=>a.push([i+1,r.querySelector(".st").value,r.querySelector(".et").value,r.querySelector(".tot").innerText]));
+  [...body.rows].forEach((r,i)=>{
+    a.push([i+1,r.querySelector(".st").value,r.querySelector(".et").value,r.querySelector(".tot").innerText]);
+  });
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a),"Hours");
   XLSX.writeFile(wb,"WorkingHours.xlsx");
 }
-
-function showPopup(){popupBox.style.display="flex"}
-function closePopup(){popupBox.style.display="none"}
 </script>
 
 </body>
